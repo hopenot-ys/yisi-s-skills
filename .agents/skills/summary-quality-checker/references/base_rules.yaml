@@ -1,0 +1,83 @@
+version: 0.1.0
+purpose: Shared bottom-line rules for all securities research-report summary checks.
+
+base_rules:
+  faithfulness:
+    description: 忠实原文
+    rules:
+      - 不编造
+      - 不夸大
+      - 不歪曲
+      - 不把原文的可能性改成确定性
+      - 不添加原文没有的实体、数字、因果关系或结论
+  no_investment_advice:
+    description: 不做投资建议
+    rules:
+      - 不建议买入
+      - 不建议卖出
+      - 不建议持有
+      - 不建议加仓
+      - 不建议减仓
+      - 不建议配置
+      - 不建议布局
+  no_trading_inducement:
+    description: 不诱导交易
+    rules:
+      - 不使用“机会来了”“值得布局”“抓紧”“抄底”“上车”等行动导向表达
+      - 不把阅读价值包装成交易行动
+  no_return_promise:
+    description: 不保证收益
+    rules:
+      - 不出现确定收益
+      - 不出现稳赚
+      - 不出现必涨
+      - 不出现保证收益
+      - 不暗示无风险收益
+  no_risk_weakening:
+    description: 不弱化风险
+    rules:
+      - 如果原文有风险、限制条件、负面因素，summary 不能只保留利好
+      - 如果原文有“可能”“有望”“预计”“或”等不确定表达，summary 不能改成确定结论
+  no_overreach:
+    description: 不越权判断
+    rules:
+      - 不替用户判断“适合投资”
+      - 不替用户判断“值得配置”
+      - 不替用户判断“应该关注/买入/卖出”
+  traceability:
+    description: 可溯源
+    rules:
+      - summary 中的核心信息必须能在 source_text 中找到依据
+      - 不通过时需要尽量给出 summary_quote 和 source_quote
+
+default_high_risk_sensitive_terms:
+  - term: 买入
+    category: 投资建议
+    action: FAIL
+  - term: 卖出
+    category: 投资建议
+    action: FAIL
+  - term: 加仓
+    category: 投资建议
+    action: FAIL
+  - term: 减仓
+    category: 投资建议
+    action: FAIL
+  - term: 抄底
+    category: 交易诱导
+    action: FAIL
+  - term: 稳赚
+    category: 收益承诺
+    action: FAIL
+  - term: 必涨
+    category: 收益承诺
+    action: FAIL
+  - term: 保证收益
+    category: 收益承诺
+    action: FAIL
+  - term: 目标价
+    category: 评级词
+    action: FAIL
+  - term: 强烈推荐
+    category: 营销诱导
+    action: FAIL

@@ -1,0 +1,31 @@
+# Copy this file to config.yaml if you want a local runtime config.
+# Do not put real API keys in this repository.
+
+llm:
+  provider: mock
+  model: mock-reviewer
+  timeout_seconds: 60
+
+  # For OpenAI-compatible providers, use environment variables:
+  # SUMMARY_CHECKER_API_KEY=...
+  # SUMMARY_CHECKER_BASE_URL=https://api.example.com/v1
+  # SUMMARY_CHECKER_MODEL=...
+  openai_compatible:
+    base_url_env: SUMMARY_CHECKER_BASE_URL
+    api_key_env: SUMMARY_CHECKER_API_KEY
+    model_env: SUMMARY_CHECKER_MODEL
+
+  # Reserved adapter names:
+  # - openai
+  # - azure_openai
+  # - qwen
+  # - doubao
+  # - kimi
+  # - claude
+  # - internal
+  # - mock
+
+checker:
+  default_result_when_llm_unavailable: REVIEW
+  fail_fast_on_high_risk_sensitive_term: true
+  dry_run_result_when_no_issue: REVIEW

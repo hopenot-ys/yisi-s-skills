@@ -1,0 +1,2 @@
+term,match_type,severity,category,action,scope,reason
+示例敏感词,contains,medium,其他,REVIEW,all,这里填写命中原因

@@ -1,0 +1,4 @@
+term,match_type,severity,category,action,scope,reason
+机会来了,contains,high,交易诱导,FAIL,all,行动导向表达，可能诱导交易
+值得关注,contains,medium,营销诱导,REVIEW,all,需要结合上下文判断是阅读提醒还是交易建议
+看好,contains,medium,其他,REVIEW,ai_quick_read_60s,需要确认是否忠实转述研报观点

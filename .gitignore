@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Trae / 工具临时文件
+.trae/
+.agents/.cache/
+
+# 输出文件（只忽略仓库根目录的临时生成输出，保留 examples 下的示例）
+/*_output_generated.csv
+/output_*.csv
+
+# 敏感配置（千万别传真实 API key）
+config.yaml
+config.local.yaml
+*.secret
