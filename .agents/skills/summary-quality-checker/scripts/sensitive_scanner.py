@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
+# 默认高危词表
 DEFAULT_HIGH_RISK_TERMS = [
     {"term": "买入", "match_type": "contains", "severity": "high", "category": "投资建议", "action": "FAIL", "scope": "all", "reason": "高危投资建议词"},
     {"term": "卖出", "match_type": "contains", "severity": "high", "category": "投资建议", "action": "FAIL", "scope": "all", "reason": "高危投资建议词"},
@@ -23,6 +24,8 @@ DEFAULT_HIGH_RISK_TERMS = [
 ]
 
 
+# 外部词表加载，允许通过 --lexicon 传一个 CSV 词表
+# 内部敏感词不要硬编码进代码，词表由外部配置注入
 def load_external_lexicon(path: Path | None) -> List[Dict[str, str]]:
     if not path:
         return []
@@ -31,11 +34,15 @@ def load_external_lexicon(path: Path | None) -> List[Dict[str, str]]:
         return [dict(row) for row in reader if (row.get("term") or "").strip()]
 
 
+#  用来决定某条规则是否适用于当前 summary_type。让外部词表可以只针对某一类摘要定制规则
 def scope_matches(scope: str, summary_type: str) -> bool:
-    scope = (scope or "all").strip()
+    scope = (scope or "all").strip()  # 所有类型都生效
     return scope == "all" or scope == summary_type
+    # 必须和当前 summary_type 完全匹配才生效
 
 
+# 支持三种模式：包含即命中、完全匹配、正则匹配
+# 默认是contain,大多数敏感词不需要复杂模式进行判断
 def match_term(summary: str, term: str, match_type: str) -> bool:
     match_type = (match_type or "contains").strip().lower()
     if match_type == "regex":
@@ -45,6 +52,7 @@ def match_term(summary: str, term: str, match_type: str) -> bool:
     return term in summary
 
 
+# 规则规范化：把内置词表和外部词表统一成同一种结构
 def normalize_rule(rule: Dict[str, str]) -> Dict[str, str]:
     return {
         "term": (rule.get("term") or "").strip(),
@@ -57,6 +65,7 @@ def normalize_rule(rule: Dict[str, str]) -> Dict[str, str]:
     }
 
 
+# 主扫描函数：“把摘要里的敏感词/高风险词找出来，并给出 PASS / REVIEW / FAIL”的扫描器。
 def scan_sensitive_terms(
     source_text: str,
     summary: str,
@@ -67,8 +76,9 @@ def scan_sensitive_terms(
 ) -> Dict[str, Any]:
     rules = [normalize_rule(rule) for rule in DEFAULT_HIGH_RISK_TERMS]
     rules.extend(normalize_rule(rule) for rule in load_external_lexicon(lexicon_path))
+    # extend:追加到现有规则列表后
 
-    hits: List[Dict[str, Any]] = []
+    hits: List[Dict[str, Any]] = []  # 命中的敏感词结果
     for rule in rules:
         if not rule["term"] or not scope_matches(rule["scope"], summary_type):
             continue

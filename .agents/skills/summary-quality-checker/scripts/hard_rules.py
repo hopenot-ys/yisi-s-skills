@@ -2,6 +2,7 @@
 
 Keep this module focused on checks that do not require deep securities semantics.
 Semantic questions should be handled by the LLM reviewer.
+定位是“快、确定、可解释”的规则检查，不依赖模型判断。
 """
 
 from __future__ import annotations
@@ -20,9 +21,13 @@ VALID_SUMMARY_TYPES = {
 }
 
 RATING_TERMS = ["买入", "增持", "中性", "减持", "卖出", "目标价", "PE", "PB", "PS"]
+# 用途主要是拦截不该出现在某些摘要类型里的直接评级表达，或者在敏感词扫描里标成风险。
+# 影评式总结禁止出现评级词
 BOILERPLATE_TERMS = ["本文认为", "研报指出", "综合分析", "本报告", "综上所述"]
+# 识别套话开头，主要用于一句话总结和 AI 速读 60 秒的检查
 EMPTY_POINT_TERMS = ["行业前景广阔", "未来可期", "值得期待", "持续向好", "发展良好", "空泛利好"]
-ENTITY_HINTS = [
+# 别空泛、没有信息量的表述
+ENTITY_HINTS = [  # “研究对象存在性”的提示词集合
     "公司",
     "行业",
     "板块",
@@ -43,22 +48,24 @@ ENTITY_HINTS = [
     "AI",
 ]
 CHINESE_NUMERAL_CHARS = "零〇一二三四五六七八九十百千万亿两"
-CHINESE_NUMBER_EXPRESSION_PATTERN = re.compile(
+CHINESE_NUMBER_EXPRESSION_PATTERN = re.compile(  # 识别中文数量表达，比如 三大支撑、第七、百分之五十 这类。
     rf"(百分之[{CHINESE_NUMERAL_CHARS}]+|"
     rf"第[{CHINESE_NUMERAL_CHARS}]+|"
     rf"[{CHINESE_NUMERAL_CHARS}]+(?:点[{CHINESE_NUMERAL_CHARS}]+)?"
     rf"(?:年|月|日|季度|季|周|天|小时|分钟|秒|百分点|百分比|倍|成|元|万元|亿元|万|亿|"
     rf"个角度|个维度|个方面|条线索|条主线|条逻辑|条支撑|大支撑|项|类|点))"
 )
-ARABIC_NUMBER_PATTERN = re.compile(r"\d+(?:\.\d+)?%?")
+ARABIC_NUMBER_PATTERN = re.compile(r"\d+(?:\.\d+)?%?")  # 识别阿拉伯数字，比如 12、3.5%。
 
 
 def visible_len(text: str) -> int:
     return len(re.sub(r"\s+", "", text or ""))
+# 计算文本的可见长度，去掉空白字符后计算长度--字数限制
 
 
 def extract_numbers(text: str) -> List[str]:
     return ARABIC_NUMBER_PATTERN.findall(text or "")
+# 提取阿拉伯数字，供结构化摘要比对数字集合
 
 
 def forbidden_number_match(text: str) -> str | None:
@@ -69,14 +76,17 @@ def forbidden_number_match(text: str) -> str | None:
     if chinese_match:
         return chinese_match.group(0)
     return None
+# 检查文本中是否有不允许的数字表达，优先匹配阿拉伯数字，其次匹配中文数字表达
 
 
 def has_any(text: str, terms: List[str]) -> bool:
     return any(term in (text or "") for term in terms)
+# 检查文本中是否包含任意一个指定的术语
 
 
 def has_research_object(text: str) -> bool:
     return has_any(text, ENTITY_HINTS) or bool(re.search(r"[A-Z]{2,}|[\u4e00-\u9fa5]{2,}(股份|集团|科技|能源|医药|银行)", text or ""))
+# 判断 summary 里有没有像“公司/行业/半导体/银行/科技股份”这类研究对象。
 
 
 def split_items(text: str) -> List[str]:
@@ -88,6 +98,7 @@ def split_items(text: str) -> List[str]:
     if len(items) <= 1 and ("；" in text or ";" in text):
         items = [part.strip() for part in re.split(r"[；;]", text) if part.strip()]
     return items
+# 把多行或分号分隔内容切成条目，用于 key_points 和 ai_quick_read_60s。
 
 
 def add_finding(findings: List[Dict[str, Any]], rule_id: str, result: str, message: str, evidence: str = "", severity: str = "high", risk_type: str = "规则不符合") -> None:
@@ -101,6 +112,7 @@ def add_finding(findings: List[Dict[str, Any]], rule_id: str, result: str, messa
             "risk_type": risk_type,
         }
     )
+# 统一追加一条违规记录，结构里带 rule_id、result、message、evidence、risk_type。
 
 
 def section_text(summary: str, start_label: str, stop_label: str | None = None) -> str:
@@ -113,8 +125,10 @@ def section_text(summary: str, start_label: str, stop_label: str | None = None) 
         if stop >= 0:
             return summary[start:stop]
     return summary[start:]
+# 从某个标题标签开始截取到下一个标签之前的文本，专门给“分段式摘要”用。
 
 
+# 路由--6
 def check_ai_lead_read(source_text: str, summary: str, findings: List[Dict[str, Any]]) -> None:
     if visible_len(summary) > 80:
         add_finding(findings, "ai_lead_read.length", "FAIL", "【字数不符合】AI 领读字数超过 80。", summary, risk_type="字数不符合")
@@ -194,6 +208,7 @@ def check_review_style_summary(source_text: str, summary: str, findings: List[Di
         add_finding(findings, "review_style_summary.rating_terms", "FAIL", "【评级词命中】影评式总结禁止出现评级词。", summary, risk_type="敏感词命中")
 
 
+# 会路由到对应的检查函数
 def run_hard_rules(source_text: str, summary: str, summary_type: str) -> Dict[str, Any]:
     findings: List[Dict[str, Any]] = []
 

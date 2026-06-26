@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CSV entrypoint for summary quality checks."""
+"""CLI entrypoint for summary quality checks."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from hard_rules import VALID_SUMMARY_TYPES, run_hard_rules
-from llm_client import build_llm_prompt, call_llm_checker, load_reference_text
+from llm_client import build_llm_prompt, call_llm_checker
 from result_merger import merge_results
 from sensitive_scanner import scan_sensitive_terms
 
@@ -45,12 +45,14 @@ def validate_row(row: Dict[str, str]) -> Dict[str, Any] | None:
     missing = [name for name in REQUIRED_COLUMNS if not (row.get(name) or "").strip()]
     if missing:
         return fail_row(f"【输入缺失】缺少必填字段：{', '.join(missing)}。")
+    # 如果有任何必填字段是空的，就返回一个错误，告诉用户具体少了哪些字段
 
+    # 检查摘要类型是否合法
     summary_type = row["summary_type"].strip()
     if summary_type not in VALID_SUMMARY_TYPES:
         return fail_row(f"【类型不支持】summary_type={summary_type} 不属于六种合法类型。")
-
-    return None
+        # 如果这个摘要类型不是我们允许的六种合法类型之一，就返回错误，告诉用户这个类型不支持
+    return None  # 数据没问题
 
 
 def process_row(
@@ -67,12 +69,12 @@ def process_row(
     summary_type = (row.get("summary_type") or "").strip()
 
     validation_failure = validate_row(row)
-    if validation_failure:
+    if validation_failure:  # 行级校验有问题
         hard_result = {"check_result": "FAIL", "findings": []}
         sensitive_result = {"check_result": "PASS", "hits": []}
         llm_result = {"check_result": "REVIEW", "risk_type": "输入不符合", "fail_reason": "输入不完整，未进行 LLM 审核。", "evidence": {}}
         final_result = validation_failure
-    else:
+    else:  # 输入合法
         hard_result = run_hard_rules(source_text, summary, summary_type)
         sensitive_result = scan_sensitive_terms(source_text, summary, summary_type, lexicon_path=lexicon_path, references_dir=references_dir)
 
@@ -116,6 +118,9 @@ def process_row(
     return output
 
 
+#  - 如果没有表头，直接抛错。
+#  - 如果缺少必需列，直接抛错。
+#  - 对每一行调用 process_row()。
 def run(args: argparse.Namespace) -> None:
     root_dir = Path(__file__).resolve().parents[1]
     references_dir = root_dir / "references"
@@ -137,6 +142,7 @@ def run(args: argparse.Namespace) -> None:
                 raise ValueError(f"输入 CSV 缺少必填列：{column}")
 
         output_fieldnames = fieldnames + [name for name in OUTPUT_COLUMNS if name not in fieldnames]
+        # 对每一行调用 process_row()
         rows: List[Dict[str, str]] = [
             process_row(
                 row,
@@ -156,16 +162,21 @@ def run(args: argparse.Namespace) -> None:
         writer.writerows(rows)
 
 
+# 定义CLI参数。规定使用者在终端里运行这个脚本时，可以传哪些参数、哪些必须传、每个参数是什么意思。
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Check summary quality for securities research-report CSV files.")
+    # 参数解析器:读取用户在终端输入的参数
     parser.add_argument("--input", required=True, help="Input CSV path.")
     parser.add_argument("--output", required=True, help="Output CSV path.")
     parser.add_argument("--lexicon", help="Optional sensitive lexicon CSV path.")
+    # 可选，用于传外部敏感词表
     parser.add_argument("--llm-provider", default=None, help="LLM provider name. Defaults to SUMMARY_CHECKER_LLM_PROVIDER or mock.")
     parser.add_argument("--model", default=None, help="Model name. Defaults to SUMMARY_CHECKER_MODEL.")
     parser.add_argument("--dry-run", action="store_true", help="Only run hard rules and sensitive-term scanning; skip LLM review.")
+    # 只要命令出现 --dry-run，就会把这个参数设置为True，表示只运行硬规则和敏感词扫描，跳过LLM审核。
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     run(parse_args())
+    # parse_args（）会把命令行参数整理成一个对象，传给run()
