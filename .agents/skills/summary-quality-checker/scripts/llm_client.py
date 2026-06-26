@@ -156,6 +156,7 @@ def call_llm_checker(
 
     if provider in {"openai", "openai-compatible", "qwen", "doubao", "kimi", "internal"}:
         # 这些 provider 统一走 OpenAI-compatible 调用。
+        # 我用ds跑过，说明我接的ds也是openai-compatible的接口
         return call_openai_compatible(prompt, model=model)
 
     if provider in {"azure_openai", "claude"}:
